@@ -29,9 +29,13 @@ void display()
     glutSwapBuffers();
 }
 
-void reshape(int w, int h) { winW = w; winH = (h == 0) ? 1 : h; }
+void reshape(int w, int h)
+{
+    winW = w;
+    winH = (h == 0) ? 1 : h;
+}
 
-void keyboard(unsigned char key, int x, int y)           // CHANGED
+void keyboard(unsigned char key, int x, int y)
 {
     switch (key)
     {
@@ -39,9 +43,21 @@ void keyboard(unsigned char key, int x, int y)           // CHANGED
         case 'd': case 'D': toggleDepthTest();    break;
         case 'w': case 'W': toggleWireframe();    break;
         case 'h': case 'H': toggleExaggeration(); break;
+        case 's': case 'S': cycleColorMode();     break;
+        case 'l': case 'L': toggleLighting();     break;   // NEW (Phase 3)
+        case 'f': case 'F': toggleShadeModel();   break;
+        case 'x': case 'X': toggleSpecular();     break;
+        case 'p': case 'P': toggleProjection();   break;
+        case 't': case 'T': camTopView();         break;
+        case 'r': case 'R': camReset();           break;
+        case 'n': case 'N': toggleSunAnim();      break;
+        case 'm': case 'M': toggleHillshade();    break;   // Member 2's minimap toggle
+        case ',': sunRotate(-10, 0);              break;
+        case '.': sunRotate( 10, 0);              break;
+        case '[': sunRotate(0, -5);               break;
+        case ']': sunRotate(0,  5);               break;
         case '+': case '=': camZoom(0.9f);        break;
         case '-': case '_': camZoom(1.1f);        break;
-        case 's': case 'S': cycleColorMode();     break;   // NEW (Phase 2)
     }
     glutPostRedisplay();
 }

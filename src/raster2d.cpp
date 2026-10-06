@@ -52,12 +52,23 @@ void draw2DPanel(int w, int h)
     float mapY = h - margin - size;
     float cell = size / (GRID_N - 1);
 
+        float L[3];
+    getSunDir(L);                         // same sun as the 3D view
+
     glBegin(GL_QUADS);
     for (int j = 0; j < GRID_N - 1; j++)
         for (int i = 0; i < GRID_N - 1; i++)
         {
             float c[3];
             slopeClassColor(getCellClass(i, j), c);
+
+            if (hillshade)                // software diffuse lighting, no OpenGL lights involved
+            {
+                float n[3];
+                getCellNormal(i, j, n);
+                float s = 0.35f + 0.65f * lambert(n, L);     // ambient + diffuse
+                c[0] *= s;  c[1] *= s;  c[2] *= s;
+            }
             glColor3fv(c);
 
             float x0 = mapX + i * cell;
@@ -78,7 +89,9 @@ void draw2DPanel(int w, int h)
 
     // ---- title, legend, statistics ----
     glColor3f(0, 0, 0);
-    drawText(margin, mapY - 32, "Slope map (top-down)");
+    drawText(margin, mapY - 56 - 3 * 22 - 6,
+             hillshade ? "Hillshade ON [M]: shade = 0.35 + 0.65 (N.L)"
+                       : "Hillshade OFF [M]");
 
     const char *labels[3] = {
         "Accessible  (<= 1:20, 5%)",
