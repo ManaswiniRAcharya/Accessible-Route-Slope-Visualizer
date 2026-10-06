@@ -41,6 +41,7 @@ void keyboard(unsigned char key, int x, int y)           // CHANGED
         case 'h': case 'H': toggleExaggeration(); break;
         case '+': case '=': camZoom(0.9f);        break;
         case '-': case '_': camZoom(1.1f);        break;
+        case 's': case 'S': cycleColorMode();     break;   // NEW (Phase 2)
     }
     glutPostRedisplay();
 }
@@ -90,6 +91,7 @@ int main(int argc, char **argv)
     glutCreateWindow("Accessible Route & Slope Visualizer");
 
     generateTerrain();                                   // NEW
+    computeSlopes();                                     // NEW (Phase 2)
 
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
