@@ -114,8 +114,11 @@ static void clearRoutes()
       routes[m].maxSlope = 0; routes[m].yellowCells = 0; routes[m].redCells = 0; }
 }
 
+static int version = 0;
+
 static void recompute()
 {
+    version++;
     clearRoutes();
     if (sI < 0 || gI < 0) return;
     findRoute(ROUTE_SHORTEST,   sI, sJ, gI, gJ, routes[ROUTE_SHORTEST]);
@@ -150,3 +153,5 @@ void routeGoal(int *ci, int *cj)  { *ci = gI; *cj = gJ; }
 const Route &routeGet(int mode)   { return routes[mode]; }
 bool routeShown(int mode)         { return shown[mode]; }
 void toggleRouteShown(int mode)   { shown[mode] = !shown[mode]; }
+
+int routeVersion() { return version; }

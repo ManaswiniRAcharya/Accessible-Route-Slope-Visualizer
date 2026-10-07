@@ -189,6 +189,18 @@ static void drawMap()
         canvasColor(0, 0, 0);           midpointCircle(x, y, 7);
     }
 
+    // ---- wheelchair: orange disc with a heading tick ----
+    const Wheelchair &wc = wcGet();
+    if (wc.valid)
+    {
+        int x = rnd(vx(wc.gx)), y = rnd(vy(wc.gz));
+        float hr = wc.heading * 3.14159265f / 180.0f;
+        canvasColor(1.0f, 0.55f, 0.0f);  fillCircle(x, y, 6);
+        canvasColor(0, 0, 0);            midpointCircle(x, y, 7);
+        canvasBrush(2);
+        midpointLine(x, y, x + (int)(14 * sinf(hr)), y - (int)(14 * cosf(hr)));   // screen y is up
+        canvasBrush(1);
+    }
     canvasClearClip();
 
         int fx0 = (int)mapX - 1, fy0 = (int)mapY - 1;
@@ -323,5 +335,19 @@ void draw2DPanel(int w, int h)
             text(margin, y0, "Click the map or the 3D terrain to place the START");
 
         text(margin, y0 - 76, "Click = place point   drag = pan   [E] clear");
+
+        {
+        float y1 = mapY - 190 - 98;
+        const Wheelchair &wc = wcGet();
+        if (wc.valid)
+        {
+            sprintf(buf, "Wheelchair: %.0f / %.0f m   speed %.1f m/s   slope %+.1f%%",
+                    wc.dist, wc.total, wc.speed, 100 * wc.slopeAlong);
+            text(margin, y1, buf);
+            text(margin, y1 - 18, "[Space] play/pause  [B] restart  [U/J] speed  [O] follow");
+        }
+        else
+            text(margin, y1, "Wheelchair: needs an accessible route");
+        }
     }
 }

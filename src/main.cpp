@@ -70,6 +70,12 @@ void keyboard(unsigned char key, int x, int y)
         case '1': toggleRouteShown(ROUTE_SHORTEST);    break;   // NEW (Phase 6)
         case '2': toggleRouteShown(ROUTE_ACCESSIBLE);  break;
         case 'e': case 'E': routeClear();              break;
+
+        case ' ': wcTogglePlay();                 break;   // NEW (Phase 7)
+        case 'b': case 'B': wcRestart();          break;
+        case 'u': case 'U': wcSpeedScale(1.25f);  break;
+        case 'j': case 'J': wcSpeedScale(0.8f);   break;
+        case 'o': case 'O': toggleFollowCam();    break;
     }
     glutPostRedisplay();
 }
@@ -148,6 +154,7 @@ void motion(int x, int y)
 void timer(int v)
 {
     update3D();
+    wcUpdate();                                         // NEW (Phase 7)
     glutPostRedisplay();
     glutTimerFunc(16, timer, 0);
 }

@@ -133,4 +133,33 @@ void  toggleRouteShown(int mode);
 bool  pick3D(int mx, int my, int *ci, int *cj);            // view3d.cpp, Member 1 (window coords, y down)
 bool  mapPickCell(float px, float py, int *ci, int *cj);   // raster2d.cpp, Member 2 (panel coords, y up)
 
+// ---------- Route change counter (route.cpp, Member 2) ----------
+int routeVersion();                      // increases every time the routes are recomputed
+
+// ---------- Wheelchair animation (wheelchair.cpp, Member 2) ----------
+struct Wheelchair
+{
+    bool  valid;          // an accessible path exists
+    bool  playing;
+    bool  atEnd;
+    float gx, gz;         // position in grid units (cell centres are x.5)
+    float x, y, z;        // world position, REAL heights (no exaggeration)
+    float heading;        // degrees; forward direction = (sin, 0, cos) in (x, z)
+    float dhdx, dhdz;     // terrain gradient under the chair (metres per metre)
+    float slopeAlong;     // signed slope in the travel direction (+ = uphill)
+    float slopeAbs;       // magnitude of the gradient
+    float speed;          // current speed in m/s (demo time)
+    float dist;           // metres travelled along the path
+    float total;          // total path length in metres
+};
+
+void  wcUpdate();                        // call once per frame (from the timer)
+void  wcTogglePlay();
+void  wcRestart();
+void  wcSpeedScale(float factor);
+const Wheelchair &wcGet();
+
+// ---------- Follow camera (view3d.cpp, Member 1) ----------
+void  toggleFollowCam();
+
 #endif
