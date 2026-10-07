@@ -10,6 +10,16 @@ static unsigned char buf[MAXW * MAXH * 3];     // RGB, row 0 = BOTTOM row (like 
 static int cw = 0, ch = 0;
 static int brush = 1;
 static unsigned char cr = 0, cg = 0, cb = 0;
+static int  clx0 = 0, cly0 = 0, clx1 = 0, cly1 = 0;
+static bool clipOn = false;
+
+void canvasSetClip(int x0, int y0, int x1, int y1)
+{
+    clx0 = x0; cly0 = y0; clx1 = x1; cly1 = y1;
+    clipOn = true;
+}
+void canvasClearClip() { clipOn = false; }
+
 
 int canvasW() { return cw; }
 int canvasH() { return ch; }
@@ -20,6 +30,7 @@ void canvasBegin(int w, int h)
     ch = (h > MAXH) ? MAXH : h;
     memset(buf, 255, (size_t)cw * ch * 3);       // white background
     brush = 1;
+    clipOn = false;
 }
 
 static unsigned char toByte(float v)
@@ -43,6 +54,7 @@ void canvasPixel(int x, int y)
         {
             int px = x0 + dx, py = y0 + dy;
             if (px < 0 || px >= cw || py < 0 || py >= ch) continue;
+                        if (clipOn && (px < clx0 || px > clx1 || py < cly0 || py > cly1)) continue;
             unsigned char *p = &buf[((size_t)py * cw + px) * 3];
             p[0] = cr; p[1] = cg; p[2] = cb;
         }

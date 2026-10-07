@@ -80,4 +80,24 @@ void drawTestPattern(int w, int h);
 void toggleGrid();
 void toggleTestPattern();
 
+// ---------- Canvas pixel clip (canvas.cpp, Member 2) ----------
+void canvasSetClip(int x0, int y0, int x1, int y1);   // inclusive pixel rectangle
+void canvasClearClip();
+
+// ---------- Cohen-Sutherland (clip.cpp, Member 1) ----------
+// Clips the segment to [xmin,xmax] x [ymin,ymax]. Endpoints are modified in place.
+// Returns 0 = rejected, 1 = accepted unchanged, 2 = accepted after clipping.
+int  clipLine(double &x0, double &y0, double &x1, double &y1,
+              double xmin, double ymin, double xmax, double ymax);
+void drawClipDemo(int w, int h);
+void clipDemoStats(int *accepted, int *rejected, int *clipped);
+
+// ---------- Minimap view: window-to-viewport (raster2d.cpp, Member 2) ----------
+// px, py are PANEL pixel coordinates (origin bottom-left of the right panel)
+void mapZoomAt(float px, float py, float factor);   // factor < 1 zooms in
+void mapZoomCenter(float factor);
+void mapPanPixels(float dx, float dy);              // drag distance in panel pixels (y up)
+void mapResetView();
+void toggleClipDemo();
+
 #endif

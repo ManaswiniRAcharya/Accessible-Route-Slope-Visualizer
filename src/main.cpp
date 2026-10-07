@@ -3,7 +3,8 @@
 #include "common.h"
 
 static int winW = WIN_W, winH = WIN_H;
-static bool dragging = false;               // NEW
+static bool dragging = false;
+static bool panning = false;                              // NEW (Phase 5)               // NEW
 static int lastX = 0, lastY = 0;            // NEW
 
 void display()
@@ -60,6 +61,10 @@ void keyboard(unsigned char key, int x, int y)
         case '-': case '_': camZoom(1.1f);        break;
         case 'g': case 'G': toggleGrid();         break;   // NEW (Phase 4)
         case 'k': case 'K': toggleTestPattern();  break;   // NEW (Phase 4)
+        case 'z': mapZoomCenter(0.8f);            break;   // NEW (Phase 5)
+        case 'Z': mapZoomCenter(1.25f);           break;
+        case 'v': case 'V': mapResetView();       break;
+        case 'c': case 'C': toggleClipDemo();     break;
     }
     glutPostRedisplay();
 }
@@ -73,25 +78,36 @@ void special(int key, int x, int y)                      // NEW: arrow keys orbi
     glutPostRedisplay();
 }
 
-void mouse(int btn, int state, int x, int y)             // NEW
+void mouse(int btn, int state, int x, int y)
 {
-    // RIGHT drag orbits (left click is reserved for picking in Phase 6)
-    if (btn == GLUT_RIGHT_BUTTON)
+    int leftW = winW * 2 / 3;
+    bool inPanel = (x >= leftW);
+
+    if (btn == GLUT_RIGHT_BUTTON)                          // right drag: orbit 3D
     {
-        dragging = (state == GLUT_DOWN) && (x < winW * 2 / 3);
+        dragging = (state == GLUT_DOWN) && !inPanel;
         lastX = x; lastY = y;
     }
-    if (state == GLUT_DOWN && btn == 3) camZoom(0.9f);   // wheel up
-    if (state == GLUT_DOWN && btn == 4) camZoom(1.1f);   // wheel down
+    if (btn == GLUT_LEFT_BUTTON)                           // left drag in panel: pan minimap
+    {
+        panning = (state == GLUT_DOWN) && inPanel;
+        lastX = x; lastY = y;
+    }
+    if (state == GLUT_DOWN && (btn == 3 || btn == 4))      // wheel
+    {
+        float f = (btn == 3) ? 0.9f : 1.1f;
+        if (inPanel) mapZoomAt((float)(x - leftW), (float)(winH - y), f);
+        else         camZoom(f);
+    }
 }
 
-void motion(int x, int y)                                // NEW
+void motion(int x, int y)
 {
     if (dragging)
-    {
         camDrag(x - lastX, y - lastY);
-        lastX = x; lastY = y;
-    }
+    else if (panning)
+        mapPanPixels((float)(x - lastX), (float)(lastY - y));   // screen y is down, panel y is up
+    lastX = x; lastY = y;
 }
 
 void timer(int v)
