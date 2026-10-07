@@ -100,4 +100,37 @@ void mapPanPixels(float dx, float dy);              // drag distance in panel pi
 void mapResetView();
 void toggleClipDemo();
 
+// ---------- Route finding (route.cpp, Member 2) ----------
+#define MAX_ROUTE ((GRID_N - 1) * (GRID_N - 1))
+
+enum RouteMode { ROUTE_SHORTEST = 0, ROUTE_ACCESSIBLE = 1 };
+
+struct Route
+{
+    bool  found;                 // a path exists
+    int   fail;                  // 0 = ok, 1 = start/goal on a blocked cell, 2 = no path
+    int   n;                     // number of cells on the path
+    int   ci[MAX_ROUTE], cj[MAX_ROUTE];
+    float length;                // metres (plan view)
+    float maxSlope;              // steepest cell on the path (0.05 = 5 %)
+    int   yellowCells, redCells;
+};
+
+bool  findRoute(int mode, int si, int sj, int gi, int gj, Route &out);
+
+void  routeInit();                         // default start/goal, call after computeSlopes()
+void  routePick(int ci, int cj);           // 1st click = start, 2nd = goal, 3rd = new start
+void  routeClear();
+bool  routeHasStart();
+bool  routeHasGoal();
+void  routeStart(int *ci, int *cj);
+void  routeGoal(int *ci, int *cj);
+const Route &routeGet(int mode);
+bool  routeShown(int mode);
+void  toggleRouteShown(int mode);
+
+// ---------- Picking ----------
+bool  pick3D(int mx, int my, int *ci, int *cj);            // view3d.cpp, Member 1 (window coords, y down)
+bool  mapPickCell(float px, float py, int *ci, int *cj);   // raster2d.cpp, Member 2 (panel coords, y up)
+
 #endif

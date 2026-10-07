@@ -21,6 +21,9 @@ static float camYaw   = 0.0f;
 static float camPitch = 40.0f;
 static float camDist  = 110.0f;
 
+static double mvM[16], prM[16];      // matrices captured each frame, used for picking
+static GLint  vpM[4];
+
 static const double D2R = 3.14159265358979 / 180.0;
 
 // ---------- toggles and controls ----------
@@ -217,9 +220,101 @@ static void drawHUD(int w, int h)
             specOn ? "ON" : "OFF", orthoOn ? "ORTHOGRAPHIC" : "PERSPECTIVE", depthOn ? "ON" : "OFF");
     text(10, h - 38, buf);
 
+    sprintf(buf, "Routes: [1] black=shortest %s   [2] blue=accessible %s   click = START then GOAL   [E] clear",
+        routeShown(ROUTE_SHORTEST) ? "ON" : "OFF", routeShown(ROUTE_ACCESSIBLE) ? "ON" : "OFF");
+    text(10, h - 56, buf);
+
     sprintf(buf, "Sun azimuth %.0f  elevation %.0f   [, .] [ [ ] ] rotate sun   [N] animate   [T] top view   [R] reset",
             sunAz, sunEl);
     text(10, 10, buf);
+}
+
+// ---------- picking: mouse -> ray -> terrain ----------
+// terrain height under a grid-space point (bilinear), including the drawing exaggeration
+static float terrainY(float gx, float gz)
+{
+    int i = (int)gx, j = (int)gz;
+    float fx = gx - i, fz = gz - j;
+    float h = (1 - fx) * (1 - fz) * getHeight(i,     j)     + fx * (1 - fz) * getHeight(i + 1, j)
+            + (1 - fx) * fz       * getHeight(i,     j + 1) + fx * fz       * getHeight(i + 1, j + 1);
+    return h * vscale();
+}
+
+// mx, my: window coordinates (origin top-left). Returns the terrain cell under the cursor.
+bool pick3D(int mx, int my, int *ci, int *cj)
+{
+    double x0, y0, z0, x1, y1, z1;
+    double wy = vpM[3] - my;                         // OpenGL's y points up, the mouse's points down
+    if (!gluUnProject(mx, wy, 0.0, mvM, prM, vpM, &x0, &y0, &z0)) return false;   // near plane
+    if (!gluUnProject(mx, wy, 1.0, mvM, prM, vpM, &x1, &y1, &z1)) return false;   // far plane
+
+    double dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+    double len = sqrt(dx * dx + dy * dy + dz * dz);
+    int steps = (int)(len / 0.25);                   // march in 0.25 m steps
+    if (steps < 1) return false;
+
+    for (int k = 0; k <= steps; k++)
+    {
+        double t = (double)k / steps;
+        double x = x0 + t * dx, y = y0 + t * dy, z = z0 + t * dz;
+        float gx = (float)(x / CELL_SIZE + (GRID_N - 1) * 0.5);
+        float gz = (float)(z / CELL_SIZE + (GRID_N - 1) * 0.5);
+        if (gx < 0 || gz < 0 || gx >= GRID_N - 1 || gz >= GRID_N - 1) continue;   // above the map
+        if (y <= terrainY(gx, gz)) { *ci = (int)gx; *cj = (int)gz; return true; }
+    }
+    return false;                                    // ray missed the terrain
+}
+
+// ---------- route drawing ----------
+static void centre(int ci, int cj, float lift, float *x, float *y, float *z)
+{
+    // a cell centre lies on the triangle diagonal, so its height is the diagonal's average
+    *x = gridToWorldX(ci) + CELL_SIZE * 0.5f;
+    *z = gridToWorldZ(cj) + CELL_SIZE * 0.5f;
+    *y = 0.5f * (getHeight(ci + 1, cj) + getHeight(ci, cj + 1)) * vscale() + lift;
+}
+
+static void drawPolyline3D(const Route &r, float R, float G, float B, float width)
+{
+    if (!r.found || r.n < 2) return;
+    glLineWidth(width);
+    glColor3f(R, G, B);
+    glBegin(GL_LINE_STRIP);
+    for (int k = 0; k < r.n; k++)
+    {
+        float x, y, z;
+        centre(r.ci[k], r.cj[k], 0.45f, &x, &y, &z);     // lifted so it is not buried
+        glVertex3f(x, y, z);
+    }
+    glEnd();
+    glLineWidth(1.0f);
+}
+
+static void drawMarker3D(int ci, int cj, float R, float G, float B)
+{
+    float x, y, z;
+    centre(ci, cj, 0.0f, &x, &y, &z);
+    glLineWidth(3.0f);
+    glColor3f(0, 0, 0);
+    glBegin(GL_LINES);                                   // pole
+    glVertex3f(x, y, z);  glVertex3f(x, y + 7.0f, z);
+    glEnd();
+    glLineWidth(1.0f);
+    glColor3f(R, G, B);
+    glPushMatrix();                                      // translation, as in Lab 7
+    glTranslatef(x, y + 7.8f, z);
+    glutSolidSphere(1.3, 16, 12);
+    glPopMatrix();
+}
+
+static void drawRoute3D()
+{
+    if (routeShown(ROUTE_SHORTEST))   drawPolyline3D(routeGet(ROUTE_SHORTEST),   0.05f, 0.05f, 0.05f, 3.0f);
+    if (routeShown(ROUTE_ACCESSIBLE)) drawPolyline3D(routeGet(ROUTE_ACCESSIBLE), 0.10f, 0.25f, 1.00f, 5.0f);
+
+    int ci, cj;
+    if (routeHasStart()) { routeStart(&ci, &cj); drawMarker3D(ci, cj, 1.0f, 1.0f, 1.0f); }
+    if (routeHasGoal())  { routeGoal(&ci, &cj);  drawMarker3D(ci, cj, 0.7f, 0.1f, 0.8f); }
 }
 
 // ---------- main 3D draw ----------
@@ -248,6 +343,10 @@ void draw3DScene(int w, int h)
     glLoadIdentity();
     gluLookAt(ex, ey, ez,   0, 0, 0,   0, 1, 0);
 
+    glGetDoublev(GL_MODELVIEW_MATRIX,  mvM);             // NEW (Phase 6): remember for picking
+    glGetDoublev(GL_PROJECTION_MATRIX, prM);
+    glGetIntegerv(GL_VIEWPORT,         vpM);
+
     // lighting must be configured after gluLookAt
     if (lightOn) setupLighting();
     glShadeModel(smoothOn ? GL_SMOOTH : GL_FLAT);
@@ -267,5 +366,6 @@ void draw3DScene(int w, int h)
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
+    drawRoute3D();                                       // NEW (Phase 6): lighting is already off
     drawHUD(w, h);
 }

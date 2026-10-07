@@ -65,6 +65,23 @@ void mapPanPixels(float dx, float dy)
 
 void mapResetView() { wx0 = 0; wz0 = 0; ws = NCELL; }
 
+// VIEWPORT -> WINDOW: the inverse of vx()/vy(). px, py are panel pixels (y up).
+bool mapPickCell(float px, float py, int *ci, int *cj)
+{
+    if (testPattern || clipDemo || S <= 0) return false;           // only the map can be clicked
+    if (px < mapX || px > mapX + S || py < mapY || py > mapY + S) return false;
+
+    float sc = S / ws;
+    float gx = wx0 + (px - mapX) / sc;
+    float gz = wz0 + ws - (py - mapY) / sc;
+
+    int i = (int)floorf(gx), j = (int)floorf(gz);
+    if (i < 0) i = 0;  if (i > NCELL - 1) i = NCELL - 1;
+    if (j < 0) j = 0;  if (j > NCELL - 1) j = NCELL - 1;
+    *ci = i; *cj = j;
+    return true;
+}
+
 // ---------- helpers ----------
 static void fillRect(int x0, int y0, int x1, int y1)
 {
@@ -141,27 +158,44 @@ static void drawMap()
     gridLine(0, 0, NCELL, 0);          gridLine(NCELL, 0, NCELL, NCELL);
     gridLine(NCELL, NCELL, 0, NCELL);  gridLine(0, NCELL, 0, 0);
 
-    // placeholder start -> goal (Phase 6 replaces these)
-    canvasColor(0.1f, 0.1f, 0.1f);
-    canvasBrush(2);
-    gridLine(4, 8, 32, 9);
-    canvasBrush(1);
+    // ---- routes: every segment goes clip -> window-to-viewport -> midpoint line ----
+    for (int m = 0; m < 2; m++)
+    {
+        int mode = (m == 0) ? ROUTE_SHORTEST : ROUTE_ACCESSIBLE;   // accessible drawn last, on top
+        const Route &r = routeGet(mode);
+        if (!routeShown(mode) || !r.found) continue;
 
-    int sx = rnd(vx(4)),  sy = rnd(vy(8));
-    int gx = rnd(vx(32)), gy = rnd(vy(9));
-    canvasColor(0.1f, 0.35f, 0.9f);   fillCircle(sx, sy, 6);
-    canvasColor(0, 0, 0);             midpointCircle(sx, sy, 7);
-    canvasColor(0.7f, 0.1f, 0.8f);    fillCircle(gx, gy, 6);
-    canvasColor(0, 0, 0);             midpointCircle(gx, gy, 7);
+        if (mode == ROUTE_SHORTEST) { canvasColor(0.05f, 0.05f, 0.05f); canvasBrush(2); }
+        else                        { canvasColor(0.10f, 0.25f, 1.00f); canvasBrush(4); }
+        for (int k = 0; k + 1 < r.n; k++)
+            gridLine(r.ci[k] + 0.5, r.cj[k] + 0.5, r.ci[k + 1] + 0.5, r.cj[k + 1] + 0.5);
+        canvasBrush(1);
+    }
+
+    // ---- start (white) and goal (purple) markers; the pixel scissor stops them at the frame ----
+    int mi, mj;
+    if (routeHasStart())
+    {
+        routeStart(&mi, &mj);
+        int x = rnd(vx(mi + 0.5f)), y = rnd(vy(mj + 0.5f));
+        canvasColor(1, 1, 1);  fillCircle(x, y, 6);
+        canvasColor(0, 0, 0);  midpointCircle(x, y, 7);
+    }
+    if (routeHasGoal())
+    {
+        routeGoal(&mi, &mj);
+        int x = rnd(vx(mi + 0.5f)), y = rnd(vy(mj + 0.5f));
+        canvasColor(0.7f, 0.1f, 0.8f);  fillCircle(x, y, 6);
+        canvasColor(0, 0, 0);           midpointCircle(x, y, 7);
+    }
 
     canvasClearClip();
 
-    // viewport frame (always visible, even when zoomed)
-    int fx0 = (int)mapX - 1, fy0 = (int)mapY - 1;
-    int fx1 = (int)(mapX + S) + 1, fy1 = (int)(mapY + S) + 1;
-    canvasColor(0, 0, 0);
-    midpointLine(fx0, fy0, fx1, fy0);  midpointLine(fx1, fy0, fx1, fy1);
-    midpointLine(fx1, fy1, fx0, fy1);  midpointLine(fx0, fy1, fx0, fy0);
+        int fx0 = (int)mapX - 1, fy0 = (int)mapY - 1;
+        int fx1 = (int)(mapX + S) + 1, fy1 = (int)(mapY + S) + 1;
+        canvasColor(0, 0, 0);
+        midpointLine(fx0, fy0, fx1, fy0);  midpointLine(fx1, fy0, fx1, fy1);
+        midpointLine(fx1, fy1, fx0, fy1);  midpointLine(fx0, fy1, fx0, fy0);
 }
 
 void draw2DPanel(int w, int h)
@@ -207,6 +241,16 @@ void draw2DPanel(int w, int h)
     midpointLine(1, 1, w - 2, 1);          midpointLine(w - 2, 1, w - 2, h - 2);
     midpointLine(w - 2, h - 2, 1, h - 2);  midpointLine(1, h - 2, 1, 1);
 
+    if (mapMode)                                     // line swatches for the route stats below
+    {
+        canvasBrush(3);
+        canvasColor(0.05f, 0.05f, 0.05f);
+        midpointLine((int)margin, (int)(mapY - 208 + 4), (int)margin + 14, (int)(mapY - 208 + 4));
+        canvasColor(0.10f, 0.25f, 1.00f);
+        midpointLine((int)margin, (int)(mapY - 226 + 4), (int)margin + 14, (int)(mapY - 226 + 4));
+        canvasBrush(1);
+    }
+
     canvasFlush();
 
     // text after the flush so it sits on top
@@ -240,4 +284,44 @@ void draw2DPanel(int w, int h)
             NCELL / ws, ws * CELL_SIZE, ((ws <= 15.0f) ? 1 : 5) * (int)CELL_SIZE);
     text(margin, mapY - 56 - 3 * 22 - 24, buf);
     text(margin, mapY - 56 - 3 * 22 - 42, "Wheel/Z zoom  drag pan  V reset  C clip demo");
+        {
+        float y0 = mapY - 190;
+        int ci, cj, gi, gj;
+        if (routeHasStart() && routeHasGoal())
+        {
+            routeStart(&ci, &cj);  routeGoal(&gi, &gj);
+            const Route &s = routeGet(ROUTE_SHORTEST);
+            const Route &a = routeGet(ROUTE_ACCESSIBLE);
+
+            sprintf(buf, "Start (%d,%d) -> Goal (%d,%d)", ci, cj, gi, gj);
+            text(margin, y0, buf);
+
+            sprintf(buf, "Shortest [1]: %.0f m, steepest %.0f%%, %d steep cells",
+                    s.length, 100 * s.maxSlope, s.redCells);
+            text(margin + 22, y0 - 18, buf);
+
+            if (a.found)
+            {
+                sprintf(buf, "Accessible [2]: %.0f m, steepest %.1f%%, %d ramp cells",
+                        a.length, 100 * a.maxSlope, a.yellowCells);
+                text(margin + 22, y0 - 36, buf);
+                sprintf(buf, "Detour: +%.0f m (+%.0f%%) to avoid %d steep cells",
+                        a.length - s.length, 100 * (a.length - s.length) / (s.length > 0 ? s.length : 1),
+                        s.redCells);
+                text(margin, y0 - 54, buf);
+            }
+            else
+            {
+                sprintf(buf, "Accessible [2]: NONE (%s)",
+                        a.fail == 1 ? "start or goal is on a steep cell" : "no gentle path exists");
+                text(margin + 22, y0 - 36, buf);
+            }
+        }
+        else if (routeHasStart())
+            text(margin, y0, "Start set - now click the GOAL");
+        else
+            text(margin, y0, "Click the map or the 3D terrain to place the START");
+
+        text(margin, y0 - 76, "Click = place point   drag = pan   [E] clear");
+    }
 }

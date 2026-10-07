@@ -6,6 +6,8 @@ static int winW = WIN_W, winH = WIN_H;
 static bool dragging = false;
 static bool panning = false;                              // NEW (Phase 5)               // NEW
 static int lastX = 0, lastY = 0;            // NEW
+static bool leftDown = false, moved = false;              // NEW (Phase 6)
+static int  pressX = 0, pressY = 0;
 
 void display()
 {
@@ -65,6 +67,9 @@ void keyboard(unsigned char key, int x, int y)
         case 'Z': mapZoomCenter(1.25f);           break;
         case 'v': case 'V': mapResetView();       break;
         case 'c': case 'C': toggleClipDemo();     break;
+        case '1': toggleRouteShown(ROUTE_SHORTEST);    break;   // NEW (Phase 6)
+        case '2': toggleRouteShown(ROUTE_ACCESSIBLE);  break;
+        case 'e': case 'E': routeClear();              break;
     }
     glutPostRedisplay();
 }
@@ -88,11 +93,32 @@ void mouse(int btn, int state, int x, int y)
         dragging = (state == GLUT_DOWN) && !inPanel;
         lastX = x; lastY = y;
     }
-    if (btn == GLUT_LEFT_BUTTON)                           // left drag in panel: pan minimap
+
+    if (btn == GLUT_LEFT_BUTTON)
     {
-        panning = (state == GLUT_DOWN) && inPanel;
-        lastX = x; lastY = y;
+        if (state == GLUT_DOWN)
+        {
+            leftDown = true;  moved = false;
+            panning = inPanel;                              // drag in the minimap pans it
+            pressX = lastX = x;  pressY = lastY = y;
+        }
+        else                                                // released
+        {
+            if (leftDown && !moved)                         // a click, not a drag: pick
+            {
+                int ci, cj;
+                if (inPanel)
+                {
+                    if (mapPickCell((float)(x - leftW), (float)(winH - y), &ci, &cj))
+                        routePick(ci, cj);
+                }
+                else if (pick3D(x, y, &ci, &cj))
+                    routePick(ci, cj);
+            }
+            leftDown = false;  panning = false;
+        }
     }
+
     if (state == GLUT_DOWN && (btn == 3 || btn == 4))      // wheel
     {
         float f = (btn == 3) ? 0.9f : 1.1f;
@@ -104,10 +130,19 @@ void mouse(int btn, int state, int x, int y)
 void motion(int x, int y)
 {
     if (dragging)
+    {
         camDrag(x - lastX, y - lastY);
-    else if (panning)
-        mapPanPixels((float)(x - lastX), (float)(lastY - y));   // screen y is down, panel y is up
-    lastX = x; lastY = y;
+        lastX = x; lastY = y;
+    }
+    else if (leftDown)
+    {
+        if (!moved && abs(x - pressX) + abs(y - pressY) > 4) moved = true;   // 4 px dead zone
+        if (moved && panning)
+        {
+            mapPanPixels((float)(x - lastX), (float)(lastY - y));
+            lastX = x; lastY = y;
+        }
+    }
 }
 
 void timer(int v)
@@ -126,6 +161,8 @@ int main(int argc, char **argv)
 
     generateTerrain();                                   // NEW
     computeSlopes();                                     // NEW (Phase 2)
+
+    routeInit();                                          // NEW (Phase 6)
 
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
