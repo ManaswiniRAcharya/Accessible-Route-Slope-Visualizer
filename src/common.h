@@ -59,4 +59,25 @@ void camReset();
 void draw2DPanel(int w, int h);
 void toggleHillshade();
 
+// ---------- Software canvas + line (canvas.cpp, Member 2) ----------
+void canvasBegin(int w, int h);                       // allocate and clear to white
+void canvasFlush();                                   // show the buffer with glDrawPixels
+void canvasColor(float r, float g, float b);          // current drawing colour (0..1)
+void canvasBrush(int size);                           // pixel block size (1 = single pixel)
+void canvasPixel(int x, int y);                       // set one pixel (bounds-checked)
+void canvasHLine(int x0, int x1, int y);              // horizontal span, inclusive
+int  canvasW();
+int  canvasH();
+void midpointLine(int x0, int y0, int x1, int y1);    // Lab 1, all octants
+
+// ---------- Circle, polygon fill, test pattern (fill.cpp, Member 1) ----------
+void midpointCircle(int cx, int cy, int r);           // Lab 2, outline
+void fillCircle(int cx, int cy, int r);               // solid disc
+void scanFillPolygon(const int px[], const int py[], int n);   // Lab 4, convex polygons
+void drawTestPattern(int w, int h);
+
+// ---------- Minimap toggles (raster2d.cpp, Member 2) ----------
+void toggleGrid();
+void toggleTestPattern();
+
 #endif

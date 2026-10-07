@@ -58,6 +58,8 @@ void keyboard(unsigned char key, int x, int y)
         case ']': sunRotate(0,  5);               break;
         case '+': case '=': camZoom(0.9f);        break;
         case '-': case '_': camZoom(1.1f);        break;
+        case 'g': case 'G': toggleGrid();         break;   // NEW (Phase 4)
+        case 'k': case 'K': toggleTestPattern();  break;   // NEW (Phase 4)
     }
     glutPostRedisplay();
 }
